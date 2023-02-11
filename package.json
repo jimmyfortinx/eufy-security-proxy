@@ -1,0 +1,15 @@
+{
+  "name": "eufy-security-proxy",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "main": "index.js",
+  "repository": "git@github.com:jimmyfortinx/eufy-security-proxy.git",
+  "author": "Jimmy Fortin <jimmy.fortin@gmail.com>",
+  "license": "MIT",
+  "private": false,
+  "dependencies": {
+    "eufy-security-client": "^2.4.0"
+  }
+}
