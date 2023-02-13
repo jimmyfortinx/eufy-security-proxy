@@ -10,6 +10,8 @@
   "license": "MIT",
   "private": false,
   "dependencies": {
-    "eufy-security-client": "^2.4.0"
+    "eufy-security-client": "jimmyfortinx/eufy-security-client#8686d170423d53e19bc4ad7d7a81b36a398f5181",
+    "fluent-ffmpeg": "^2.1.2",
+    "tslog": "^4.7.2"
   }
 }
