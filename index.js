@@ -23,8 +23,7 @@ let cleaningUp = false;
 async function main() {
   const logger = new Logger({
     // https://tslog.js.org/#/?id=minlevel
-    // minLevel: 4, // warning
-    minLevel: 2,
+    minLevel: 4, // warning
   });
 
   const updatedConfig = {
@@ -80,7 +79,7 @@ async function main() {
         return;
       }
 
-      const output = `rtsp://192.168.1.115:8554/${serial}-2`;
+      const output = `rtsp://192.168.1.115:8554/${serial}`;
 
       try {
         const command = ffmpeg()
