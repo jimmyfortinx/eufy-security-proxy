@@ -1,8 +1,12 @@
 const { EufySecurity, Device, CommandName } = require("eufy-security-client");
-const config = require("./config.json");
+const config = require("./data/config.json");
 const { Logger } = require("tslog");
-const net = require("net");
 const ffmpeg = require("fluent-ffmpeg");
+const { StreamInput } = require("fluent-ffmpeg-multistream");
+const express = require("express");
+const app = express();
+
+const port = 3000;
 
 /**
  * @type EufySecurity | undefined
@@ -19,20 +23,31 @@ let cleaningUp = false;
 async function main() {
   const logger = new Logger({
     // https://tslog.js.org/#/?id=minlevel
-    minLevel: 4, // warning
+    // minLevel: 4, // warning
+    minLevel: 2,
   });
 
-  eufy = await EufySecurity.initialize(config, logger);
+  const updatedConfig = {
+    persistentDir: process.cwd() + "/data",
+    ...config,
+  };
 
-  await eufy.connect();
+  eufy = await EufySecurity.initialize(updatedConfig, logger);
+
+  eufy.on("connection error", (error) => {
+    console.error(error);
+    cleaningUp();
+  });
 
   eufy.on("connect", async () => {
+    console.log("Connected");
+
     const stations = await eufy.getStations();
     const cameras = stations.filter((station) =>
       Device.isCamera(station.getDeviceType())
     );
 
-    console.log(`Connected and found ${stations.length} stations`);
+    console.log(`Found ${stations.length} stations`);
 
     const p2pCameras = [];
 
@@ -65,25 +80,12 @@ async function main() {
         return;
       }
 
-      net
-        .createServer(function (socket) {
-          videostream.on("readable", () => {
-            let chunk;
-
-            while (null !== (chunk = videostream.read())) {
-              socket.write(chunk);
-            }
-          });
-        })
-        .listen(8956, "127.0.0.1");
-
-      const inputVideo = `tcp://127.0.0.1:8956`;
-      const output = `rtsp://192.168.1.115:8554/${serial}`;
+      const output = `rtsp://192.168.1.115:8554/${serial}-2`;
 
       try {
         const command = ffmpeg()
           .videoCodec("libx264")
-          .input(inputVideo)
+          .input(StreamInput(videostream).url)
           .noAudio()
           .output(output)
           .outputOptions([
@@ -129,6 +131,17 @@ async function main() {
 
     streams.get(serial).kill("SIGKILL");
   });
+
+  eufy.on("captcha request", (id, captcha) => {
+    const base64ViewerUrl =
+      "https://www.rapidtables.com/web/tools/base64-to-image.html";
+    console.warn(
+      `A captcha is required, please go over ${base64ViewerUrl} and enter the Base64 string bellow\n${captcha}\n\nOnce completed, please fill provide the code using: http://127.0.0.1:${port}/verify/${id}/<code>`
+    );
+  });
+
+  await eufy.connect();
+  console.log("Connecting...");
 }
 
 function cleanup() {
@@ -147,4 +160,21 @@ process.on("SIGTERM", cleanup);
 main().catch((error) => {
   console.error(error);
   cleanup();
+});
+
+app.get("/verify/:id/:code", async (req, res) => {
+  console.log("FSDDSFD", req.params);
+
+  await eufy.connect({
+    captcha: {
+      captchaId: req.params.id,
+      captchaCode: req.params.code,
+    },
+  });
+
+  res.send("Connected");
+});
+
+app.listen(3000, () => {
+  console.log(`Example app listening on port ${3000}`);
 });
