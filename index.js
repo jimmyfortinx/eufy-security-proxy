@@ -35,7 +35,7 @@ async function main() {
 
   eufy.on("connection error", (error) => {
     console.error(error);
-    cleaningUp();
+    cleanUp();
   });
 
   eufy.on("connect", async () => {
@@ -72,7 +72,7 @@ async function main() {
 
   eufy.on(
     "station livestream start",
-    (station, device, metadata, videostream, audiostream) => {
+    (station, _device, _metadata, videostream, audiostream) => {
       const serial = station.getSerial();
 
       if (streams.has(serial)) {
@@ -83,12 +83,14 @@ async function main() {
 
       try {
         const command = ffmpeg()
-          .videoCodec("libx264")
+          .videoCodec("copy")
           .input(StreamInput(videostream).url)
-          .noAudio()
+          .audioCodec("aac")
+          .input(StreamInput(audiostream).url)
           .output(output)
           .outputOptions([
-            "-c copy",
+            "-map 0:v",
+            "-map 1:a",
             "-f rtsp",
             "-rtsp_transport tcp",
             `-analyzeduration ${1.2}`,
