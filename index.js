@@ -23,7 +23,7 @@ let cleaningUp = false;
 async function main() {
   const logger = new Logger({
     // https://tslog.js.org/#/?id=minlevel
-    minLevel: 4, // warning
+    minLevel: process.env.LOG_LEVEL || 4, // warning
   });
 
   const updatedConfig = {
@@ -164,8 +164,6 @@ main().catch((error) => {
 });
 
 app.get("/verify/:id/:code", async (req, res) => {
-  console.log("FSDDSFD", req.params);
-
   await eufy.connect({
     captcha: {
       captchaId: req.params.id,
