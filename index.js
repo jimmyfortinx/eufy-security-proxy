@@ -66,7 +66,6 @@ async function main() {
     // Only working with one camera for now, but we could probably scale it up
     const [{ camera, device }] = p2pCameras;
 
-    // await eufy.startStationLivestream(camera.getSerial());
     await camera.startLivestream(device);
   });
 
@@ -82,15 +81,19 @@ async function main() {
       const output = `rtsp://192.168.1.115:8554/${serial}`;
 
       try {
-        const command = ffmpeg()
-          .videoCodec("copy")
-          .input(StreamInput(videostream).url)
-          .audioCodec("aac")
-          .input(StreamInput(audiostream).url)
+        const command = ffmpeg();
+
+        if (!process.DISABLE_VIDEO) {
+          command.videoCodec("copy").input(StreamInput(videostream).url);
+        }
+
+        if (!process.DISABLE_AUDIO) {
+          command.audioCodec("aac").input(StreamInput(audiostream).url);
+        }
+
+        command
           .output(output)
           .outputOptions([
-            "-map 0:v",
-            "-map 1:a",
             "-f rtsp",
             "-rtsp_transport tcp",
             `-analyzeduration ${1.2}`,
@@ -104,7 +107,11 @@ async function main() {
             "-g 15",
             "-sc_threshold 0",
             "-fflags genpts+nobuffer+flush_packets",
-          ]);
+            "-loglevel debug",
+          ])
+          .on("stderr", function (stderrLine) {
+            console.log("Stderr output: " + stderrLine);
+          });
 
         streams.set(serial, command);
 
@@ -174,6 +181,6 @@ app.get("/verify/:id/:code", async (req, res) => {
   res.send("Connected");
 });
 
-app.listen(3000, () => {
-  console.log(`Example app listening on port ${3000}`);
+app.listen(port, () => {
+  console.log(`Example app listening on port ${port}`);
 });
