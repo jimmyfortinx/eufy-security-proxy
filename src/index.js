@@ -1,5 +1,5 @@
 const { EufySecurity, Device, CommandName } = require("eufy-security-client");
-const config = require("./data/config.json");
+const config = require("../data/config.json");
 const { Logger } = require("tslog");
 const ffmpeg = require("fluent-ffmpeg");
 const { StreamInput } = require("fluent-ffmpeg-multistream");

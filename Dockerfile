@@ -6,7 +6,7 @@ RUN npm ci
 FROM node:16-alpine
 RUN apk add  --no-cache ffmpeg
 WORKDIR /usr/src/app
-COPY --from=build /tmp/index.js ./index.js
+COPY --from=build /tmp/src/* ./src/*
 COPY --from=build /tmp/package.json ./package.json
 COPY --from=build /tmp/package-lock.json ./package-lock.json
 RUN apk add --no-cache jq \
