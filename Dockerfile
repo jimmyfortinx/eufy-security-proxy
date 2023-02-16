@@ -1,16 +1,11 @@
-FROM node:16-alpine as build
-WORKDIR /tmp
-COPY . .
-RUN npm ci
-
 FROM node:16-alpine
 RUN apk add  --no-cache ffmpeg
-WORKDIR /usr/src/app
-COPY --from=build /tmp/src/* ./src/*
-COPY --from=build /tmp/package.json ./package.json
-COPY --from=build /tmp/package-lock.json ./package-lock.json
+WORKDIR /usr/app
+COPY src /usr/app/src/
+COPY package.json /usr/app/package.json
+COPY package-lock.json /usr/app/package-lock.json
 RUN apk add --no-cache jq \
   && npm ci --only=production
 EXPOSE 3000
-VOLUME ["/usr/src/app/data"]
-CMD [ "/usr/local/bin/node", "/usr/src/app/index.js" ]
+VOLUME ["/usr/app/data"]
+CMD [ "/usr/local/bin/node", "/usr/app/src/index.js" ]

@@ -4,4 +4,4 @@ services:
   eufyserviceproxy:
     image: eufysecurityproxy:latest
     volumes:
-      - ./data:/usr/src/app/data:rw
+      - ./data:/usr/app/data:rw
