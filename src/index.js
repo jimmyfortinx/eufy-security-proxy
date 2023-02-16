@@ -15,8 +15,6 @@ let eufy;
  */
 const streams = new Map();
 
-let cleaningUp = false;
-
 async function main() {
   const logger = new Logger({
     // https://tslog.js.org/#/?id=minlevel
@@ -87,7 +85,7 @@ async function main() {
         }
 
         if (!process.DISABLE_AUDIO) {
-          command.audioCodec("copy").input(StreamInput(audiostream).url);
+          command.audioCodec("aac").input(StreamInput(audiostream).url);
         }
 
         command
@@ -165,8 +163,6 @@ async function main() {
 }
 
 function cleanup() {
-  cleaningUp = true;
-
   if (eufy) {
     eufy.close();
   }
