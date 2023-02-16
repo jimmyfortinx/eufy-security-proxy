@@ -10,6 +10,7 @@
   "license": "MIT",
   "private": false,
   "dependencies": {
+    "ejs": "^3.1.8",
     "eufy-security-client": "jimmyfortinx/eufy-security-client#8686d170423d53e19bc4ad7d7a81b36a398f5181",
     "express": "^4.18.2",
     "fluent-ffmpeg": "^2.1.2",

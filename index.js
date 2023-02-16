@@ -3,10 +3,7 @@ const config = require("./data/config.json");
 const { Logger } = require("tslog");
 const ffmpeg = require("fluent-ffmpeg");
 const { StreamInput } = require("fluent-ffmpeg-multistream");
-const express = require("express");
-const app = express();
-
-const port = 3000;
+const { captchas, getVerificationUrl, verification } = require("./express");
 
 /**
  * @type EufySecurity | undefined
@@ -78,7 +75,9 @@ async function main() {
         return;
       }
 
-      const output = `rtsp://192.168.1.115:8554/${serial}`;
+      const output = `rtsp://${
+        process.RTSP_HOSTNAME || config.rtsp?.hostname || "easydarwin"
+      }:${process.RTSP_PORT || config.rtsp?.port || "554"}/${serial}`;
 
       try {
         const command = ffmpeg();
@@ -88,7 +87,7 @@ async function main() {
         }
 
         if (!process.DISABLE_AUDIO) {
-          command.audioCodec("aac").input(StreamInput(audiostream).url);
+          command.audioCodec("copy").input(StreamInput(audiostream).url);
         }
 
         command
@@ -96,7 +95,6 @@ async function main() {
           .outputOptions([
             "-f rtsp",
             "-rtsp_transport tcp",
-            `-analyzeduration ${1.2}`,
             "-hls_init_time 0",
             "-hls_time 1",
             "-hls_segment_type mpegts",
@@ -108,10 +106,13 @@ async function main() {
             "-sc_threshold 0",
             "-fflags genpts+nobuffer+flush_packets",
             "-loglevel debug",
-          ])
-          .on("stderr", function (stderrLine) {
+          ]);
+
+        if (process.LOG_FFMPEG) {
+          command.on("stderr", function (stderrLine) {
             console.log("Stderr output: " + stderrLine);
           });
+        }
 
         streams.set(serial, command);
 
@@ -141,11 +142,22 @@ async function main() {
   });
 
   eufy.on("captcha request", (id, captcha) => {
-    const base64ViewerUrl =
-      "https://www.rapidtables.com/web/tools/base64-to-image.html";
+    captchas.set(id, captcha);
+
     console.warn(
-      `A captcha is required, please go over ${base64ViewerUrl} and enter the Base64 string bellow\n${captcha}\n\nOnce completed, please fill provide the code using: http://127.0.0.1:${port}/verify/${id}/<code>`
+      `A captcha is required, please go over ${getVerificationUrl(
+        id
+      )} to complete the authentication process.`
     );
+  });
+
+  verification.on("code_received", async ({ id, code }) => {
+    await eufy.connect({
+      captcha: {
+        captchaId: id,
+        captchaCode: code,
+      },
+    });
   });
 
   await eufy.connect();
@@ -168,19 +180,4 @@ process.on("SIGTERM", cleanup);
 main().catch((error) => {
   console.error(error);
   cleanup();
-});
-
-app.get("/verify/:id/:code", async (req, res) => {
-  await eufy.connect({
-    captcha: {
-      captchaId: req.params.id,
-      captchaCode: req.params.code,
-    },
-  });
-
-  res.send("Connected");
-});
-
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
 });
