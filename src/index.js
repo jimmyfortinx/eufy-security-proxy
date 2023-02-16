@@ -2,7 +2,7 @@ const { EufySecurity, Device, CommandName } = require("eufy-security-client");
 const config = require("../data/config.json");
 const { Logger } = require("tslog");
 const ffmpeg = require("fluent-ffmpeg");
-const { StreamInput } = require("fluent-ffmpeg-multistream");
+const net = require("net");
 const { captchas, getVerificationUrl, verification } = require("./express");
 
 /**
@@ -81,11 +81,23 @@ async function main() {
         const command = ffmpeg();
 
         if (!process.DISABLE_VIDEO) {
-          command.videoCodec("copy").input(StreamInput(videostream).url);
+          const port = 8888;
+          net
+            .createServer((socket) =>
+              videostream.on("data", (chunk) => socket.write(chunk))
+            )
+            .listen(port);
+          command.videoCodec("copy").input(`tcp://localhost:${port}`);
         }
 
         if (!process.DISABLE_AUDIO) {
-          command.audioCodec("aac").input(StreamInput(audiostream).url);
+          const port = 8889;
+          net
+            .createServer((socket) =>
+              audiostream.on("data", (chunk) => socket.write(chunk))
+            )
+            .listen(port);
+          command.audioCodec("aac").input(`tcp://localhost:${port}`);
         }
 
         command
