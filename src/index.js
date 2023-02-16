@@ -74,13 +74,13 @@ async function main() {
       }
 
       const output = `rtsp://${
-        process.RTSP_HOSTNAME || config.rtsp?.hostname || "easydarwin"
-      }:${process.RTSP_PORT || config.rtsp?.port || "554"}/${serial}`;
+        process.env.RTSP_HOSTNAME || config.rtsp?.hostname || "easydarwin"
+      }:${process.env.RTSP_PORT || config.rtsp?.port || "554"}/${serial}`;
 
       try {
         const command = ffmpeg();
 
-        if (!process.DISABLE_VIDEO) {
+        if (!process.env.DISABLE_VIDEO) {
           const port = 8888;
           net
             .createServer((socket) =>
@@ -90,7 +90,7 @@ async function main() {
           command.videoCodec("copy").input(`tcp://localhost:${port}`);
         }
 
-        if (!process.DISABLE_AUDIO) {
+        if (!process.env.DISABLE_AUDIO) {
           const port = 8889;
           net
             .createServer((socket) =>
@@ -118,7 +118,7 @@ async function main() {
             "-loglevel debug",
           ]);
 
-        if (process.LOG_FFMPEG) {
+        if (process.env.LOG_FFMPEG) {
           command.on("stderr", function (stderrLine) {
             console.log("Stderr output: " + stderrLine);
           });
