@@ -2,6 +2,7 @@ FROM node:16-alpine
 RUN apk add  --no-cache ffmpeg
 WORKDIR /usr/app
 COPY src /usr/app/src/
+COPY views /usr/app/views/
 COPY package.json /usr/app/package.json
 COPY package-lock.json /usr/app/package-lock.json
 RUN apk add --no-cache jq \
