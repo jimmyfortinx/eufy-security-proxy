@@ -1,5 +1,6 @@
 FROM node:16-alpine
-RUN apk add  --no-cache ffmpeg
+RUN apk add --no-cache tzdata
+RUN apk add --no-cache ffmpeg
 WORKDIR /usr/app
 COPY src /usr/app/src/
 COPY views /usr/app/views/
