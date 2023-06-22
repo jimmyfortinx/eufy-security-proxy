@@ -142,13 +142,18 @@ async function main() {
   );
 
   eufy.on("station livestream stop", async (station) => {
-    const serial = station.getSerial();
+    console.error("Livestream stopped", station);
+    cleanup(1);
+  });
 
-    if (!streams.has(serial)) {
-      return;
-    }
+  eufy.on("station connection error", async (station, error) => {
+    console.error("Station connection error", station, error);
+    cleanup(1);
+  });
 
-    streams.get(serial).kill("SIGKILL");
+  eufy.on("connection error", (error) => {
+    console.error("Connection error", error);
+    cleanup(1);
   });
 
   eufy.on("captcha request", (id, captcha) => {
@@ -174,12 +179,12 @@ async function main() {
   console.log("Connecting...");
 }
 
-function cleanup() {
+function cleanup(exitCode = 0) {
   if (eufy) {
     eufy.close();
   }
 
-  process.exit();
+  process.exit(exitCode);
 }
 
 process.on("SIGINT", cleanup);
@@ -187,5 +192,5 @@ process.on("SIGTERM", cleanup);
 
 main().catch((error) => {
   console.error(error);
-  cleanup();
+  cleanup(1);
 });
