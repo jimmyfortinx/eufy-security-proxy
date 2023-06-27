@@ -2,6 +2,6 @@ version: '3.4'
 
 services:
   eufyserviceproxy:
-    image: eufysecurityproxy:latest
+    image: jimmyfortin/eufy-security-proxy:latest
     volumes:
       - ./data:/usr/app/data:rw

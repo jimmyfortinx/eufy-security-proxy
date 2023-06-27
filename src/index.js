@@ -156,6 +156,11 @@ async function main() {
     cleanup(1);
   });
 
+  eufy.on("close", async (station) => {
+    console.error("Closed", station);
+    cleanup(1);
+  });
+
   eufy.on("captcha request", (id, captcha) => {
     captchas.set(id, captcha);
 
