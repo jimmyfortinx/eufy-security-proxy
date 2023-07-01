@@ -67,6 +67,8 @@ async function main() {
   eufy.on(
     "station livestream start",
     (station, _device, _metadata, videostream, audiostream) => {
+      console.log("station livestream start", station.getSerial());
+
       const serial = station.getSerial();
 
       if (streams.has(serial)) {
@@ -129,7 +131,11 @@ async function main() {
         command
           .on("error", (error) => {
             console.error(error);
-            cleanup();
+            cleanup(1);
+          })
+          .on("end", () => {
+            console.log("The stream just ended");
+            cleanup(1);
           })
           .run();
 
