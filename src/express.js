@@ -18,8 +18,8 @@ const verification = new EventEmitter();
  * @returns
  */
 const getVerificationUrl = (id) => {
-  return `http://${process.env.EXTERNAL_HOSTNAME || "127.0.0.1"}:${
-    process.env.EXTERNAL_PORT || port
+  return `${
+    process.env.EXTERNAL_HOST ?? `http://127.0.0.1:${port}`
   }/verify/${id}`;
 };
 

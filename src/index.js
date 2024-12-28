@@ -1,5 +1,4 @@
 const { EufySecurity, Device, CommandName } = require("eufy-security-client");
-const config = require("../data/config.json");
 const { Logger } = require("tslog");
 const ffmpeg = require("fluent-ffmpeg");
 const net = require("net");
@@ -23,7 +22,8 @@ async function main() {
 
   const updatedConfig = {
     persistentDir: process.cwd() + "/data",
-    ...config,
+    username: process.env.USERNAME,
+    password: process.env.PASSWORD,
   };
 
   eufy = await EufySecurity.initialize(updatedConfig, logger);
@@ -73,9 +73,9 @@ async function main() {
         return;
       }
 
-      const output = `rtsp://${
-        process.env.RTSP_HOSTNAME || config.rtsp?.hostname || "easydarwin"
-      }:${process.env.RTSP_PORT || config.rtsp?.port || "554"}/${serial}`;
+      const output = `rtsp://${process.env.RTSP_HOSTNAME || "easydarwin"}:${
+        process.env.RTSP_PORT || "554"
+      }/${serial}`;
 
       try {
         const command = ffmpeg();
