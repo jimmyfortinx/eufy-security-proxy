@@ -11,7 +11,7 @@
   "private": false,
   "dependencies": {
     "ejs": "^3.1.8",
-    "eufy-security-client": "jimmyfortinx/eufy-security-client#b6f1614cbc7cad2754f230a9051cdf3d758719a4",
+    "eufy-security-client": "file:../eufy-security-client",
     "express": "^4.18.2",
     "fluent-ffmpeg": "^2.1.2",
     "fluent-ffmpeg-multistream": "^1.0.0",
