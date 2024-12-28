@@ -8,7 +8,6 @@
   "repository": "git@github.com:jimmyfortinx/eufy-security-proxy.git",
   "author": "Jimmy Fortin <jimmy.fortin@gmail.com>",
   "license": "MIT",
-  "private": false,
   "dependencies": {
     "ejs": "^3.1.8",
     "eufy-security-client": "file:../eufy-security-client",
@@ -16,5 +15,6 @@
     "fluent-ffmpeg": "^2.1.2",
     "fluent-ffmpeg-multistream": "^1.0.0",
     "tslog": "^4.7.2"
-  }
+  },
+  "packageManager": "yarn@4.5.3"
 }
