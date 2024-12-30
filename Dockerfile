@@ -1,7 +1,7 @@
 FROM node:20-alpine 
 RUN apk add --no-cache ffmpeg jq
 WORKDIR /usr/app
-COPY .env* /usr/app/
+RUN test -f .env && cp .env /usr/app/.env || echo "File does not exist"
 COPY node_modules /usr/app/node_modules
 COPY src /usr/app/src/
 COPY views /usr/app/views/
