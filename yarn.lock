@@ -511,6 +511,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"dotenv@npm:^16.4.7":
+  version: 16.4.7
+  resolution: "dotenv@npm:16.4.7"
+  checksum: 10c0/be9f597e36a8daf834452daa1f4cc30e5375a5968f98f46d89b16b983c567398a330580c88395069a77473943c06b877d1ca25b4afafcdd6d4adb549e8293462
+  languageName: node
+  linkType: hard
+
 "dunder-proto@npm:^1.0.0":
   version: 1.0.1
   resolution: "dunder-proto@npm:1.0.1"
@@ -591,9 +598,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eufy-security-client@file:../eufy-security-client::locator=eufy-security-proxy%40workspace%3A.":
-  version: 3.1.1
-  resolution: "eufy-security-client@file:../eufy-security-client#../eufy-security-client::hash=01cd35&locator=eufy-security-proxy%40workspace%3A."
+"eufy-security-client@portal:../eufy-security-client::locator=eufy-security-proxy%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "eufy-security-client@portal:../eufy-security-client::locator=eufy-security-proxy%40workspace%3A."
   dependencies:
     "@cospired/i18n-iso-languages": "npm:^4.2.0"
     crypto-js: "npm:^4.2.0"
@@ -613,16 +620,16 @@ __metadata:
     tiny-typed-emitter: "npm:^2.1.0"
     typescript-logging: "npm:^2.2.0"
     typescript-logging-category-style: "npm:^2.2.0"
-  checksum: 10c0/878688d3641670ef2afe1948e6c2d82a4b971baa46beb13783c10cc66a3d5e33d6512a9b9a116f49957eafe19751325f543661723fe519718435e098a8a16804
   languageName: node
-  linkType: hard
+  linkType: soft
 
 "eufy-security-proxy@workspace:.":
   version: 0.0.0-use.local
   resolution: "eufy-security-proxy@workspace:."
   dependencies:
+    dotenv: "npm:^16.4.7"
     ejs: "npm:^3.1.8"
-    eufy-security-client: "file:../eufy-security-client"
+    eufy-security-client: "portal:../eufy-security-client"
     express: "npm:^4.18.2"
     fluent-ffmpeg: "npm:^2.1.2"
     fluent-ffmpeg-multistream: "npm:^1.0.0"

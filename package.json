@@ -2,13 +2,15 @@
   "name": "eufy-security-proxy",
   "version": "1.0.0",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node --security-revert=CVE-2023-46809 src/index.js",
+    "build:mac": "docker build --platform=linux/arm64 -t jimmyfortin/eufy-security-proxy ."
   },
   "main": "src/index.js",
   "repository": "git@github.com:jimmyfortinx/eufy-security-proxy.git",
   "author": "Jimmy Fortin <jimmy.fortin@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "dotenv": "^16.4.7",
     "ejs": "^3.1.8",
     "eufy-security-client": "file:../eufy-security-client",
     "express": "^4.18.2",
