@@ -4,6 +4,8 @@ const ffmpeg = require("fluent-ffmpeg");
 const net = require("net");
 const { captchas, getVerificationUrl, verification } = require("./express");
 
+require("dotenv").config();
+
 /**
  * @type EufySecurity | undefined
  */
@@ -14,10 +16,12 @@ let eufy;
  */
 const streams = new Map();
 
+// https://tslog.js.org/#/?id=minlevel
+const logLevel = process.env.LOG_LEVEL || 4; // warning
+
 async function main() {
   const logger = new Logger({
-    // https://tslog.js.org/#/?id=minlevel
-    minLevel: process.env.LOG_LEVEL || 4, // warning
+    minLevel: logLevel,
   });
 
   const updatedConfig = {
@@ -27,6 +31,7 @@ async function main() {
   };
 
   eufy = await EufySecurity.initialize(updatedConfig, logger);
+  eufy.setLoggingLevel("all", logLevel);
 
   eufy.on("connection error", (error) => {
     console.error(error);
@@ -105,17 +110,7 @@ async function main() {
           .outputOptions([
             "-f rtsp",
             "-rtsp_transport tcp",
-            "-hls_init_time 0",
-            "-hls_time 1",
-            "-hls_segment_type mpegts",
-            "-hls_playlist_type event",
-            "-hls_list_size 0",
-            "-preset ultrafast",
-            "-tune zerolatency",
-            "-g 15",
-            "-sc_threshold 0",
-            "-fflags genpts+nobuffer+flush_packets",
-            "-loglevel debug",
+            ...(process.env.LOG_FFMPEG ? ["-loglevel debug"] : []),
           ]);
 
         if (process.env.LOG_FFMPEG) {
