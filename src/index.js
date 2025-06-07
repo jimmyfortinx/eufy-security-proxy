@@ -69,8 +69,8 @@ async function main() {
     console.log(`Found ${p2pCameras.length} P2P cameras`);
 
     timeoutId = setTimeout(() => {
-      throw new Error("Could not start the livestream inside of 2 seconds");
-    }, 2000);
+      throw new Error("Could not start the livestream inside of 30 seconds");
+    }, 30000);
 
     // Only working with one camera for now, but we could probably scale it up
     const [{ camera, device }] = p2pCameras;
