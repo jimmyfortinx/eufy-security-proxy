@@ -46,36 +46,42 @@ async function main() {
   eufy.on("connect", async () => {
     console.log("Connected");
 
-    const stations = await eufy.getStations();
-    const cameras = stations.filter((station) =>
-      Device.isCamera(station.getDeviceType())
-    );
+    try {
+      const stations = await eufy.getStations();
+      const cameras = stations.filter((station) =>
+        Device.isCamera(station.getDeviceType())
+      );
 
-    console.log(`Found ${stations.length} stations`);
+      console.log(`Found ${stations.length} stations`);
 
-    const p2pCameras = [];
+      const p2pCameras = [];
 
-    for (const camera of cameras) {
-      const device = await eufy.getDevice(camera.getSerial());
+      for (const camera of cameras) {
+        const device = await eufy.getDevice(camera.getSerial());
 
-      if (device.hasCommand(CommandName.DeviceStartLivestream)) {
-        p2pCameras.push({
-          camera,
-          device,
-        });
+        if (device.hasCommand(CommandName.DeviceStartLivestream)) {
+          p2pCameras.push({
+            camera,
+            device,
+          });
+        }
       }
+
+      console.log(`Found ${p2pCameras.length} P2P cameras`);
+
+      timeoutId = setTimeout(() => {
+        console.error("Could not start the livestream inside of 30 seconds");
+        cleanup();
+      }, 30000);
+
+      // Only working with one camera for now, but we could probably scale it up
+      const [{ camera, device }] = p2pCameras;
+
+      await camera.startLivestream(device);
+    } catch (error) {
+      console.error(error);
+      cleanup();
     }
-
-    console.log(`Found ${p2pCameras.length} P2P cameras`);
-
-    timeoutId = setTimeout(() => {
-      throw new Error("Could not start the livestream inside of 30 seconds");
-    }, 30000);
-
-    // Only working with one camera for now, but we could probably scale it up
-    const [{ camera, device }] = p2pCameras;
-
-    await camera.startLivestream(device);
   });
 
   eufy.on(
