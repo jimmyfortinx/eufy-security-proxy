@@ -19,6 +19,11 @@ const streams = new Map();
 // https://tslog.js.org/#/?id=minlevel
 const logLevel = process.env.LOG_LEVEL || 4; // warning
 
+/**
+ * @type number;
+ */
+let timeoutId = undefined;
+
 async function main() {
   const logger = new Logger({
     minLevel: logLevel,
@@ -62,6 +67,10 @@ async function main() {
     }
 
     console.log(`Found ${p2pCameras.length} P2P cameras`);
+
+    timeoutId = setTimeout(() => {
+      throw new Error("Could not start the livestream inside of 2 seconds");
+    }, 2000);
 
     // Only working with one camera for now, but we could probably scale it up
     const [{ camera, device }] = p2pCameras;
@@ -127,6 +136,8 @@ async function main() {
             cleanup();
           })
           .run();
+
+        clearTimeout(timeoutId);
 
         console.log(`Proxying the camera ${serial} to ${output}...`);
       } catch (error) {
