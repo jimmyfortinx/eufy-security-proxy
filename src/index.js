@@ -36,7 +36,7 @@ async function main() {
   };
 
   eufy = await EufySecurity.initialize(updatedConfig, logger);
-  eufy.setLoggingLevel("all", logLevel);
+  eufy.setLoggingLevel("all", logLevel - 1);
 
   eufy.on("connection error", (error) => {
     console.error(error);
