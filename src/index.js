@@ -39,7 +39,12 @@ async function main() {
   eufy.setLoggingLevel("all", logLevel - 1);
 
   eufy.on("connection error", (error) => {
-    console.error(error);
+    console.error("connection error:", error);
+    cleanUp();
+  });
+
+  eufy.on("livestream error", (error) => {
+    console.error("livestream error:", error);
     cleanUp();
   });
 
