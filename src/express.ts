@@ -1,23 +1,16 @@
-const EventEmitter = require("events");
-const express = require("express");
+import EventEmitter from "events";
+import express from "express";
 const app = express();
 
 app.set("view engine", "ejs");
 
 const port = 3000;
 
-/**
- * @type Map<string, string>
- */
-const captchas = new Map();
+export const captchas = new Map();
 
-const verification = new EventEmitter();
+export const verification = new EventEmitter();
 
-/**
- * @param {string} id
- * @returns
- */
-const getVerificationUrl = (id) => {
+export const getVerificationUrl = (id: string) => {
   return `${
     process.env.EXTERNAL_HOST ?? `http://127.0.0.1:${port}`
   }/verify/${id}`;
@@ -47,9 +40,3 @@ app.get("/verify/:id", async (req, res) => {
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
-
-module.exports = {
-  captchas,
-  verification,
-  getVerificationUrl,
-};

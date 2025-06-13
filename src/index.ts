@@ -1,38 +1,64 @@
-const { EufySecurity, Device, CommandName } = require("eufy-security-client");
-const { Logger } = require("tslog");
-const ffmpeg = require("fluent-ffmpeg");
-const net = require("net");
-const { captchas, getVerificationUrl, verification } = require("./express");
+// import "./patchNodeRsa.js";
+import {
+  EufySecurity,
+  Device,
+  CommandName,
+  type EufySecurityConfig,
+  type Station,
+  P2PConnectionType,
+  type P2PClientProtocol,
+} from "eufy-security-client";
+import { Logger } from "tslog";
+import ffmpeg from "fluent-ffmpeg";
+import net from "net";
+import { captchas, getVerificationUrl, verification } from "./express.ts";
+import { config } from "dotenv";
 
-require("dotenv").config();
+config();
 
-/**
- * @type EufySecurity | undefined
- */
-let eufy;
+let eufy: EufySecurity | undefined;
+
+function cleanup() {
+  if (eufy !== undefined) {
+    eufy.close();
+  }
+
+  process.exit();
+}
 
 /**
  * @type Map<string, ffmpeg.FfmpedCommand>
  */
-const streams = new Map();
+const streams = new Map<string, ffmpeg.FfmpegCommand>();
 
 // https://tslog.js.org/#/?id=minlevel
-const logLevel = process.env.LOG_LEVEL || 4; // warning
+const logLevel = process.env.LOG_LEVEL
+  ? Number.parseInt(process.env.LOG_LEVEL)
+  : 4; // warning
 
-/**
- * @type number;
- */
-let timeoutId = undefined;
+let timeoutId: NodeJS.Timeout | undefined = undefined;
 
 async function main() {
   const logger = new Logger({
     minLevel: logLevel,
   });
 
-  const updatedConfig = {
+  if (process.env.USERNAME === undefined) {
+    throw new Error("USERNAME environment variable is missing");
+  }
+
+  if (process.env.PASSWORD === undefined) {
+    throw new Error("PASSWORD environment variable is missing");
+  }
+
+  const updatedConfig: EufySecurityConfig = {
     persistentDir: process.cwd() + "/data",
     username: process.env.USERNAME,
     password: process.env.PASSWORD,
+    p2pConnectionSetup: P2PConnectionType.QUICKEST,
+    pollingIntervalMinutes: 10,
+    eventDurationSeconds: 10,
+    enableEmbeddedPKCS1Support: true,
   };
 
   eufy = await EufySecurity.initialize(updatedConfig, logger);
@@ -40,16 +66,13 @@ async function main() {
 
   eufy.on("connection error", (error) => {
     console.error("connection error:", error);
-    cleanUp();
+    cleanup();
   });
 
-  eufy.on("livestream error", (error) => {
-    console.error("livestream error:", error);
-    cleanUp();
-  });
-
-  eufy.on("connect", async () => {
-    console.log("Connected");
+  const start = async (stop?: boolean) => {
+    if (eufy === undefined) {
+      throw new Error("Undefined");
+    }
 
     try {
       const stations = await eufy.getStations();
@@ -59,7 +82,7 @@ async function main() {
 
       console.log(`Found ${stations.length} stations`);
 
-      const p2pCameras = [];
+      const p2pCameras: { camera: Station; device: Device }[] = [];
 
       for (const camera of cameras) {
         const device = await eufy.getDevice(camera.getSerial());
@@ -82,11 +105,30 @@ async function main() {
       // Only working with one camera for now, but we could probably scale it up
       const [{ camera, device }] = p2pCameras;
 
+      if (stop) {
+        await camera.stopLivestream(device);
+      }
       await camera.startLivestream(device);
     } catch (error) {
       console.error(error);
       cleanup();
     }
+  };
+
+  (eufy as any as P2PClientProtocol).on(
+    "livestream error",
+    async (_, error) => {
+      console.error("livestream error:", error);
+      cleanup();
+
+      await start(true);
+    }
+  );
+
+  eufy.on("connect", async () => {
+    console.log("Connected");
+
+    await start();
   });
 
   eufy.on(
@@ -161,11 +203,13 @@ async function main() {
   eufy.on("station livestream stop", async (station) => {
     const serial = station.getSerial();
 
-    if (!streams.has(serial)) {
+    const stream = streams.get(serial);
+
+    if (stream === undefined) {
       return;
     }
 
-    streams.get(serial).kill("SIGKILL");
+    stream.kill("SIGKILL");
   });
 
   eufy.on("captcha request", (id, captcha) => {
@@ -179,24 +223,21 @@ async function main() {
   });
 
   verification.on("code_received", async ({ id, code }) => {
+    if (eufy === undefined) {
+      throw new Error("Undefined");
+    }
+
     await eufy.connect({
       captcha: {
         captchaId: id,
         captchaCode: code,
       },
+      force: false,
     });
   });
 
   await eufy.connect();
   console.log("Connecting...");
-}
-
-function cleanup() {
-  if (eufy) {
-    eufy.close();
-  }
-
-  process.exit();
 }
 
 process.on("SIGINT", cleanup);
