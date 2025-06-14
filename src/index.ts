@@ -7,22 +7,26 @@ import {
   type Station,
   P2PConnectionType,
   type P2PClientProtocol,
+  LogLevel,
 } from "eufy-security-client";
 import { Logger } from "tslog";
 import ffmpeg from "fluent-ffmpeg";
-import net from "net";
+import net, { Server, Socket } from "net";
 import { captchas, getVerificationUrl, verification } from "./express.ts";
-import LokiTransport from "winston-loki";
-import { createLogger, format, transports } from "winston";
-import winston from "winston/lib/winston/config/index.js";
 import { flushAndExit, winstonLogger } from "./logger.ts";
+import { setLoggingLevel } from "eufy-security-client/build/logging.js";
 
+const MAX_RETRY_ATTEMPTS = 3;
 let retryAttempt = 0;
 let eufy: EufySecurity | undefined;
 
 async function cleanup() {
   if (eufy !== undefined) {
-    eufy.close();
+    try {
+      eufy.close();
+    } catch (error) {
+      console.error("An error happened while closing eufy connections", error);
+    }
   }
 
   await flushAndExit();
@@ -38,7 +42,14 @@ function logErrorAndExit(message: string) {
 /**
  * @type Map<string, ffmpeg.FfmpedCommand>
  */
-const streams = new Map<string, ffmpeg.FfmpegCommand>();
+const streams = new Map<
+  string,
+  {
+    command: ffmpeg.FfmpegCommand;
+    video: Server | undefined;
+    audio: Server | undefined;
+  }
+>();
 
 let timeoutId: NodeJS.Timeout | undefined = undefined;
 
@@ -80,13 +91,31 @@ async function main() {
   };
 
   eufy = await EufySecurity.initialize(updatedConfig, logger);
-  eufy.setLoggingLevel("all", 3);
 
   eufy.on("connection error", logErrorAndExit("connection error"));
 
-  const start = async (stop?: boolean) => {
+  const stop = async (stationSerial: string) => {
+    const stream = streams.get(stationSerial);
+
+    if (stream === undefined) {
+      return;
+    }
+
+    const { command, audio, video } = stream;
+
+    audio?.close();
+    video?.close();
+    command.kill("SIGKILL");
+    streams.delete(stationSerial);
+  };
+
+  const start = async (stopLivestream?: boolean) => {
     if (eufy === undefined) {
       throw new Error("Undefined");
+    }
+
+    if (retryAttempt > MAX_RETRY_ATTEMPTS) {
+      eufy.setLoggingLevel("all", LogLevel.Debug);
     }
 
     try {
@@ -122,8 +151,9 @@ async function main() {
       // Only working with one camera for now, but we could probably scale it up
       const [{ camera, device }] = p2pCameras;
 
-      if (stop) {
-        await camera.stopLivestream(device);
+      if (stopLivestream) {
+        winstonLogger.info("stopping livestream");
+        await stop(device.getStationSerial());
       }
       await camera.startLivestream(device);
     } catch (error) {
@@ -131,14 +161,22 @@ async function main() {
     }
   };
 
+  const restart = (context: string) => async (error: any) => {
+    if (retryAttempt > MAX_RETRY_ATTEMPTS) {
+      await logErrorAndExit(context)(error);
+    } else {
+      retryAttempt++;
+      winstonLogger.warn(
+        `${context}, we will retry (${retryAttempt}/${MAX_RETRY_ATTEMPTS})`
+      );
+      await start(true);
+    }
+  };
+
   (eufy as any as P2PClientProtocol).on(
     "livestream error",
     async (_, error) => {
-      if (retryAttempt > 3) {
-        await logErrorAndExit("livestream start error")(error);
-      } else {
-        await start(true);
-      }
+      await restart("livestream error")(error);
     }
   );
 
@@ -163,10 +201,12 @@ async function main() {
 
       try {
         const command = ffmpeg();
+        let video: Server | undefined;
+        let audio: Server | undefined;
 
         if (!process.env.DISABLE_VIDEO) {
           const port = 8888;
-          net
+          video = net
             .createServer((socket) =>
               videostream.on("data", (chunk) => socket.write(chunk))
             )
@@ -176,7 +216,7 @@ async function main() {
 
         if (!process.env.DISABLE_AUDIO) {
           const port = 8889;
-          net
+          audio = net
             .createServer((socket) =>
               audiostream.on("data", (chunk) => socket.write(chunk))
             )
@@ -194,16 +234,21 @@ async function main() {
 
         if (process.env.LOG_FFMPEG) {
           command.on("stderr", function (stderrLine) {
-            winstonLogger.info("Stderr output: " + stderrLine);
+            winstonLogger.info(stderrLine, {
+              source: "ffmpeg",
+            });
           });
         }
 
-        streams.set(serial, command);
+        streams.set(serial, { command, audio, video });
 
-        command.on("error", logErrorAndExit("ffmpeg stream error")).run();
+        command
+          .on("error", async (error) => logErrorAndExit("ffmpeg command error"))
+          .run();
 
         clearTimeout(timeoutId);
         retryAttempt = 0;
+        setLoggingLevel("all", LogLevel.Off);
 
         winstonLogger.info(`Proxying the camera ${serial} to ${output}...`);
       } catch (error) {
@@ -213,17 +258,7 @@ async function main() {
     }
   );
 
-  eufy.on("station livestream stop", async (station) => {
-    const serial = station.getSerial();
-
-    const stream = streams.get(serial);
-
-    if (stream === undefined) {
-      return;
-    }
-
-    stream.kill("SIGKILL");
-  });
+  eufy.on("station livestream stop", (station) => stop(station.getSerial()));
 
   eufy.on("captcha request", (id, captcha) => {
     captchas.set(id, captcha);
@@ -255,5 +290,7 @@ async function main() {
 
 process.on("SIGINT", cleanup);
 process.on("SIGTERM", cleanup);
+process.on("uncaughtException", logErrorAndExit("uncaughtException"));
+process.on("unhandledRejection", logErrorAndExit("unhandledRejection"));
 
 main().catch(logErrorAndExit("uncaughted exception"));

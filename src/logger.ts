@@ -29,14 +29,6 @@ export const winstonLogger = createLogger({
   ],
 });
 
-process.on("uncaughtException", (err) => {
-  winstonLogger.error("Uncaught exception:", err);
-});
-
-process.on("unhandledRejection", (reason) => {
-  winstonLogger.error("Unhandled rejection:", reason);
-});
-
 export async function flushAndExit(code?: number) {
   try {
     for (const transport of winstonLogger.transports) {
