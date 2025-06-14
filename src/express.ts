@@ -1,5 +1,6 @@
 import EventEmitter from "events";
 import express from "express";
+import { winstonLogger } from "./logger.ts";
 const app = express();
 
 app.set("view engine", "ejs");
@@ -38,5 +39,9 @@ app.get("/verify/:id", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+  winstonLogger.info(`Example app listening on port ${port}`);
+});
+
+app.on("error", (error) => {
+  winstonLogger.error(error);
 });

@@ -1,4 +1,4 @@
-// import "./patchNodeRsa.js";
+import "./dotenv.ts";
 import {
   EufySecurity,
   Device,
@@ -12,18 +12,27 @@ import { Logger } from "tslog";
 import ffmpeg from "fluent-ffmpeg";
 import net from "net";
 import { captchas, getVerificationUrl, verification } from "./express.ts";
-import { config } from "dotenv";
+import LokiTransport from "winston-loki";
+import { createLogger, format, transports } from "winston";
+import winston from "winston/lib/winston/config/index.js";
+import { flushAndExit, winstonLogger } from "./logger.ts";
 
-config();
-
+let retryAttempt = 0;
 let eufy: EufySecurity | undefined;
 
-function cleanup() {
+async function cleanup() {
   if (eufy !== undefined) {
     eufy.close();
   }
 
-  process.exit();
+  await flushAndExit();
+}
+
+function logErrorAndExit(message: string) {
+  return async (error: any) => {
+    winstonLogger.error(message, error);
+    await cleanup();
+  };
 }
 
 /**
@@ -31,16 +40,25 @@ function cleanup() {
  */
 const streams = new Map<string, ffmpeg.FfmpegCommand>();
 
-// https://tslog.js.org/#/?id=minlevel
-const logLevel = process.env.LOG_LEVEL
-  ? Number.parseInt(process.env.LOG_LEVEL)
-  : 4; // warning
-
 let timeoutId: NodeJS.Timeout | undefined = undefined;
 
 async function main() {
   const logger = new Logger({
-    minLevel: logLevel,
+    argumentsArrayName: "argumentsArray",
+    attachedTransports: [
+      (logObject) => {
+        {
+          const [first, ...meta] =
+            (logObject.argumentsArray as any as any[]) ?? [""];
+
+          return winstonLogger.log(
+            logObject._meta.logLevelName.toLowerCase(),
+            typeof first === "string" ? first : JSON.stringify(first),
+            ...meta
+          );
+        }
+      },
+    ],
   });
 
   if (process.env.USERNAME === undefined) {
@@ -62,12 +80,9 @@ async function main() {
   };
 
   eufy = await EufySecurity.initialize(updatedConfig, logger);
-  eufy.setLoggingLevel("all", logLevel - 1);
+  eufy.setLoggingLevel("all", 3);
 
-  eufy.on("connection error", (error) => {
-    console.error("connection error:", error);
-    cleanup();
-  });
+  eufy.on("connection error", logErrorAndExit("connection error"));
 
   const start = async (stop?: boolean) => {
     if (eufy === undefined) {
@@ -80,7 +95,7 @@ async function main() {
         Device.isCamera(station.getDeviceType())
       );
 
-      console.log(`Found ${stations.length} stations`);
+      winstonLogger.info(`Found ${stations.length} stations`);
 
       const p2pCameras: { camera: Station; device: Device }[] = [];
 
@@ -95,10 +110,12 @@ async function main() {
         }
       }
 
-      console.log(`Found ${p2pCameras.length} P2P cameras`);
+      winstonLogger.info(`Found ${p2pCameras.length} P2P cameras`);
 
       timeoutId = setTimeout(() => {
-        console.error("Could not start the livestream inside of 30 seconds");
+        winstonLogger.error(
+          "Could not start the livestream inside of 30 seconds"
+        );
         cleanup();
       }, 30000);
 
@@ -110,23 +127,23 @@ async function main() {
       }
       await camera.startLivestream(device);
     } catch (error) {
-      console.error(error);
-      cleanup();
+      await logErrorAndExit("livestream start error")(error);
     }
   };
 
   (eufy as any as P2PClientProtocol).on(
     "livestream error",
     async (_, error) => {
-      console.error("livestream error:", error);
-      cleanup();
-
-      await start(true);
+      if (retryAttempt > 3) {
+        await logErrorAndExit("livestream start error")(error);
+      } else {
+        await start(true);
+      }
     }
   );
 
   eufy.on("connect", async () => {
-    console.log("Connected");
+    winstonLogger.info("Connected");
 
     await start();
   });
@@ -177,24 +194,20 @@ async function main() {
 
         if (process.env.LOG_FFMPEG) {
           command.on("stderr", function (stderrLine) {
-            console.log("Stderr output: " + stderrLine);
+            winstonLogger.info("Stderr output: " + stderrLine);
           });
         }
 
         streams.set(serial, command);
 
-        command
-          .on("error", (error) => {
-            console.error(error);
-            cleanup();
-          })
-          .run();
+        command.on("error", logErrorAndExit("ffmpeg stream error")).run();
 
         clearTimeout(timeoutId);
+        retryAttempt = 0;
 
-        console.log(`Proxying the camera ${serial} to ${output}...`);
+        winstonLogger.info(`Proxying the camera ${serial} to ${output}...`);
       } catch (error) {
-        console.error(error);
+        winstonLogger.error(error);
         cleanup();
       }
     }
@@ -215,7 +228,7 @@ async function main() {
   eufy.on("captcha request", (id, captcha) => {
     captchas.set(id, captcha);
 
-    console.warn(
+    winstonLogger.warn(
       `A captcha is required, please go over ${getVerificationUrl(
         id
       )} to complete the authentication process.`
@@ -237,13 +250,10 @@ async function main() {
   });
 
   await eufy.connect();
-  console.log("Connecting...");
+  winstonLogger.info("Connecting...");
 }
 
 process.on("SIGINT", cleanup);
 process.on("SIGTERM", cleanup);
 
-main().catch((error) => {
-  console.error(error);
-  cleanup();
-});
+main().catch(logErrorAndExit("uncaughted exception"));
