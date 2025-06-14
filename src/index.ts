@@ -16,7 +16,9 @@ import { captchas, getVerificationUrl, verification } from "./express.ts";
 import { flushAndExit, winstonLogger } from "./logger.ts";
 import { setLoggingLevel } from "eufy-security-client/build/logging.js";
 
-const MAX_RETRY_ATTEMPTS = 3;
+const MAX_RETRY_ATTEMPTS = process.env.MAX_RETRY_ATTEMPTS
+  ? Number.parseInt(process.env.MAX_RETRY_ATTEMPTS)
+  : 3;
 let retryAttempt = 0;
 let eufy: EufySecurity | undefined;
 
