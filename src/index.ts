@@ -116,7 +116,7 @@ async function main() {
       throw new Error("Undefined");
     }
 
-    if (retryAttempt > MAX_RETRY_ATTEMPTS) {
+    if (retryAttempt >= MAX_RETRY_ATTEMPTS) {
       eufy.setLoggingLevel("all", LogLevel.Debug);
     }
 
@@ -164,7 +164,7 @@ async function main() {
   };
 
   const restart = (context: string) => async (error: any) => {
-    if (retryAttempt > MAX_RETRY_ATTEMPTS) {
+    if (retryAttempt >= MAX_RETRY_ATTEMPTS) {
       await logErrorAndExit(context)(error);
     } else {
       retryAttempt++;
@@ -250,7 +250,7 @@ async function main() {
 
         clearTimeout(timeoutId);
         retryAttempt = 0;
-        setLoggingLevel("all", LogLevel.Off);
+        setLoggingLevel("all", LogLevel.Error);
 
         winstonLogger.info(`Proxying the camera ${serial} to ${output}...`);
       } catch (error) {

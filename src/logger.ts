@@ -1,17 +1,21 @@
 import { createLogger, format, transports } from "winston";
 import LokiTransport from "winston-loki";
 import { setTimeout } from "timers/promises";
+import { EOL } from "os";
 
 if (process.env.LOKI_HOST === undefined) {
   throw new Error("LOKI_HOST environment variable is missing");
 }
 
+const myFormat = format.printf(({ level, message, stack }) => {
+  return `${level}${message}${stack === undefined ? "" : `${EOL}${stack}`}`;
+});
+
 export const winstonLogger = createLogger({
   format: format.json(),
   transports: [
     new transports.Console({
-      // level: process.env.LOG_LEVEL ?? "error",
-      format: format.cli(),
+      format: format.combine(format.cli(), myFormat),
     }),
     new LokiTransport({
       json: true,
