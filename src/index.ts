@@ -11,7 +11,7 @@ import {
 } from "eufy-security-client";
 import { Logger } from "tslog";
 import ffmpeg from "fluent-ffmpeg";
-import net, { Server, Socket } from "net";
+import net, { Server } from "net";
 import { captchas, getVerificationUrl, verification } from "./express.ts";
 import { flushAndExit, winstonLogger } from "./logger.ts";
 import { setLoggingLevel } from "eufy-security-client/build/logging.js";
@@ -64,8 +64,16 @@ async function main() {
           const [first, ...meta] =
             (logObject.argumentsArray as any as any[]) ?? [""];
 
+          const level = logObject._meta.logLevelName.toLowerCase();
+
+          if (level === "error") {
+            setTimeout(() => {
+              cleanup();
+            }, 1000);
+          }
+
           return winstonLogger.log(
-            logObject._meta.logLevelName.toLowerCase(),
+            level,
             typeof first === "string" ? first : JSON.stringify(first),
             ...meta
           );
