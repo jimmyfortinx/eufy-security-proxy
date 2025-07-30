@@ -66,12 +66,6 @@ async function main() {
 
           const level = logObject._meta.logLevelName.toLowerCase();
 
-          if (level === "error") {
-            setTimeout(() => {
-              cleanup();
-            }, 1000);
-          }
-
           return winstonLogger.log(
             level,
             typeof first === "string" ? first : JSON.stringify(first),
@@ -216,11 +210,36 @@ async function main() {
 
         if (!process.env.DISABLE_VIDEO) {
           const port = 8888;
+
+          let lastDataReceived = Date.now();
+          const videoInactivityTimeout = 10000; // 10 seconds timeout
+          const checkVideoInactivity = setInterval(() => {
+            if (Date.now() - lastDataReceived > videoInactivityTimeout) {
+              clearInterval(checkVideoInactivity);
+              logErrorAndExit("Video stream inactivity timeout")(
+                new Error(
+                  `No video data received for ${videoInactivityTimeout} ms`
+                )
+              );
+            }
+          }, 1000);
+
           video = net
             .createServer((socket) =>
-              videostream.on("data", (chunk) => socket.write(chunk))
+              videostream.on("data", (chunk) => {
+                lastDataReceived = Date.now();
+                socket.write(chunk);
+              })
             )
             .listen(port);
+
+          videostream.on("end", () => {
+            clearInterval(checkVideoInactivity);
+            logErrorAndExit("Video stream ended")(
+              new Error("Video stream ended unexpectedly")
+            );
+          });
+
           command.videoCodec("copy").input(`tcp://localhost:${port}`);
         }
 
